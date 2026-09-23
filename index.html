@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>Couple Travel Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script>
+tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','sans-serif']},colors:{
+  primary:'#a83223','primary-container':'#c94a38','on-primary':'#ffffff',
+  'primary-fixed':'#ffdad4','primary-fixed-dim':'#ffb4a8','on-primary-fixed':'#410100',
+  secondary:'#376847','secondary-container':'#b6edc2','on-secondary-container':'#3b6d4b',
+  'secondary-fixed':'#b9efc5','on-secondary-fixed':'#00210e',
+  tertiary:'#735802','tertiary-fixed':'#ffdf96','on-tertiary-fixed':'#251a00',
+  surface:'#f3faff','surface-container-lowest':'#ffffff','surface-container-low':'#e6f6ff',
+  'surface-container':'#d8f2ff','surface-container-high':'#ccedfe','surface-container-highest':'#c6e8f8',
+  'on-surface':'#001f29','on-surface-variant':'#58413d','outline':'#8c716c','outline-variant':'#e0bfba',
+}}}}
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;min-width:0;}
+html,body{
+  width:100%;height:100%;margin:0;padding:0;
+  overflow:hidden;
+  background:#f3faff;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:14px;color:#001f29;
+  -webkit-text-size-adjust:100%;
+}
+/* App shell: fills iframe, clips all children */
+#app{
+  position:fixed;top:0;left:0;
+  width:100%;height:100%;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+}
+[v-cloak]{display:none!important;}
+
+/* Scrollable content area — only this scrolls vertically */
+.content-scroll{
+  flex:1;overflow-x:hidden;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  width:100%;
+}
+
+/* Images: never exceed container */
+img{display:block;max-width:100%;height:auto;object-fit:cover;}
+
+/* Horizontal pill rows: scroll internally, never push layout */
+.scroll-x{overflow-x:auto;overflow-y:hidden;width:100%;}
+.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none;}
+.no-scrollbar::-webkit-scrollbar{display:none;}
+
+/* Typography */
+.t-micro  {font-size:10px;font-weight:700;letter-spacing:.04em;line-height:1.4;}
+.t-label  {font-size:11px;font-weight:600;letter-spacing:.02em;line-height:1.5;}
+.t-body   {font-size:13px;font-weight:400;line-height:1.6;}
+.t-title  {font-size:14px;font-weight:700;line-height:1.4;}
+.t-headline{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.3;}
+.t-display {font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.2;}
+
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Touch */
+.tap{transition:transform .1s;-webkit-tap-highlight-color:transparent;}
+.tap:active{transform:scale(.95);}
+
+/* Transitions */
+.fade-enter-active,.fade-leave-active{transition:opacity .15s,transform .15s;}
+.fade-enter-from{opacity:0;transform:translateY(6px);}
+.fade-leave-to{opacity:0;transform:translateY(-4px);}
+.slide-up-enter-active,.slide-up-leave-active{transition:transform .28s cubic-bezier(.16,1,.3,1),opacity .2s;}
+.slide-up-enter-from,.slide-up-leave-to{transform:translateY(100%);opacity:0;}
+
+/* Dashed connector */
+.dashed-line{
+  background-image:repeating-linear-gradient(to bottom,#a83223 0,#a83223 4px,transparent 4px,transparent 10px);
+  width:2px;
+}
+input[type="time"]{-webkit-appearance:none;font-family:inherit;}
+input[type="time"]::-webkit-calendar-picker-indicator{display:none;}
+
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin{animation:spin 1s linear infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.pulse{animation:pulse 2s ease infinite;}
+@keyframes ping{0%{transform:scale(1);opacity:.75}100%{transform:scale(2);opacity:0}}
+.ping{animation:ping 1.2s ease infinite;}
+</style>
+</head>
+<body>
+<script>
+// Force GAS iframe to full viewport immediately
+(function(){
+  function resize(){
+    try{
+      if(window.google&&google.script&&google.script.host){
+        google.script.host.setHeight(window.innerHeight||screen.height);
+        google.script.host.setWidth(window.innerWidth||screen.width);
+      }
+    }catch(e){}
+    // Also patch our own #app height to window.innerHeight
+    var app=document.getElementById('app');
+    if(app){app.style.height=window.innerHeight+'px';}
+  }
+  document.addEventListener('DOMContentLoaded',resize);
+  window.addEventListener('resize',resize);
+  setTimeout(resize,100);
+  setTimeout(resize,500);
+})();
+</script>
+<div id="app" v-cloak>
+
+  <!-- Toast -->
+  <div v-if="syncStatus.show"
+    style="position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:999;pointer-events:none"
+    class="px-3 py-1.5 rounded-full t-micro shadow-lg flex items-center gap-1.5 whitespace-nowrap"
+    :class="syncStatus.type==='saving'?'bg-yellow-600 text-white':syncStatus.type==='error'?'bg-red-600 text-white':'bg-green-700 text-white'">
+    <span class="material-symbols-outlined" style="font-size:14px" :class="syncStatus.type==='saving'?'spin':''">
+      {{ syncStatus.type==='saving'?'sync':syncStatus.type==='error'?'warning':'check_circle' }}
+    </span>
+    {{ syncStatus.message }}
+  </div>
+
+  <!-- HEADER: fixed 52px -->
+  <header style="flex-shrink:0;height:52px;background:rgba(243,250,255,.96);backdrop-filter:blur(12px);border-bottom:1px solid #ccedfe;z-index:100;">
+    <div style="height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow:hidden;">
+        <div style="width:28px;height:28px;border-radius:8px;background:#a83223;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span class="material-symbols-outlined" style="font-size:16px;color:#fff;font-variation-settings:'FILL' 1">favorite</span>
+        </div>
+        <div style="min-width:0;flex:1;overflow:hidden;">
+          <div class="truncate t-title" style="color:#a83223;">{{ trip.name }}</div>
+          <div class="truncate t-micro" style="color:#58413d;">{{ trip.partnerA }} &amp; {{ trip.partnerB }}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <select v-if="allTrips.length>1" v-model="selectedTripId" @change="switchTrip"
+          style="font-family:inherit;font-size:10px;font-weight:700;color:#58413d;background:#e6f6ff;border:none;border-radius:8px;padding:3px 6px;outline:none;max-width:90px;">
+          <option v-for="t in allTrips" :key="t.id" :value="t.id">{{ t.name }}</option>
+        </select>
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#b6edc2;color:#3b6d4b" class="t-micro">
+          <span style="width:6px;height:6px;border-radius:50%;background:#376847;display:inline-block" class="pulse"></span>Sync
+        </span>
+        <button @click="refreshData" style="width:28px;height:28px;border-radius:50%;background:#e6f6ff;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" class="tap">
+          <span class="material-symbols-outlined" style="font-size:16px;color:#58413d;" :class="isRefreshing?'spin':''">sync</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- SCROLLABLE MAIN -->
+  <div class="content-scroll">
+
+    <!-- Loading -->
+    <div v-if="isLoading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:12px;">
+      <div style="width:32px;height:32px;border:3px solid #ffdad4;border-top-color:#a83223;border-radius:50%;" class="spin"></div>
+      <span class="t-label" style="color:#58413d;">Memuat data...</span>
+    </div>
+
+    <transition v-else name="fade" mode="out-in">
+
+    <!-- TAB: URUTAN -->
+    <div v-if="activeTab==='plan'" key="plan" style="padding:12px;display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="t-headline" style="color:#001f29;">Atur Rute &amp; Urutan</div>
+          <div class="t-micro" style="color:#58413d;margin-top:2px;">Day {{ activeDay }} • <span style="color:#a83223;">{{ currentDayItinerary.length }} Destinasi</span></div>
+        </div>
+        <span class="t-micro" style="color:#58413d;display:flex;align-items:center;gap:2px;">
+          <span class="material-symbols-outlined" style="font-size:14px;color:#735802;">swap_vert</span>Susun
+        </span>
+      </div>
+
+      <!-- Day pills -->
+      <div class="scroll-x no-scrollbar" style="display:flex;gap:6px;padding-bottom:4px;">
+        <button v-for="day in trip.totalDays" :key="'dp'+day" @click="activeDay=day" class="tap t-micro"
+          style="padding:6px 14px;border-radius:999px;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0;"
+          :style="activeDay===day?'background:#a83223;color:#fff':'background:#ccedfe;color:#001f29'">
+          Day {{ day }}
+        </button>
+        <button @click="showMasterModal=true" class="tap t-micro"
+          style="padding:6px 14px;border-radius:999px;border:1px solid #ffdad4;background:#f3faff;color:#a83223;cursor:pointer;flex-shrink:0;">
+          + Tambah
+        </button>
+      </div>
+
+      <!-- Optimize banner -->
+      <div style="display:flex;align-items:center;justify-content:space-between;background:#b6edc2;border-radius:14px;padding:10px 12px;">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;">
+          <div style="width:28px;height:28px;border-radius:50%;background:#b9efc5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span class="material-symbols-outlined" style="font-size:16px;color:#00210e;">auto_fix_high</span>
+          </div>
+          <div style="min-width:0;overflow:hidden;">
+            <div class="t-label truncate" style="color:#001f29;">Optimalkan Rute Cerdas</div>
+            <div class="t-micro truncate" style="color:#58413d;">Susun urutan terpendek</div>
+          </div>
+        </div>
+        <button @click="showMasterModal=true" class="tap t-micro" style="padding:5px 12px;border-radius:999px;background:#376847;color:#fff;border:none;cursor:pointer;flex-shrink:0;margin-left:8px;">+ Pilih</button>
+      </div>
+
+      <!-- Itinerary cards -->
+      <div style="display:flex;flex-direction:column;gap:0;">
+        <div v-for="(item,idx) in currentDayItinerary" :key="'it'+item.id">
+          <div style="background:#fff;border-radius:16px;padding:12px;border:1px solid #ccedfe;display:flex;align-items:flex-start;gap:8px;margin-bottom:4px;">
+            <!-- Number + arrows -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;align-self:stretch;justify-content:space-between;padding:2px 0;">
+              <span style="width:20px;height:20px;border-radius:50%;background:#ffdad4;color:#a83223;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;">{{ idx+1 }}</span>
+              <div style="display:flex;flex-direction:column;">
+                <button @click="moveItem(idx,-1)" :disabled="idx===0" class="tap" style="background:none;border:none;cursor:pointer;padding:0;" :style="idx===0?'opacity:.25':''">
+                  <span class="material-symbols-outlined" style="font-size:18px;color:#58413d;">arrow_drop_up</span>
+                </button>
+                <button @click="moveItem(idx,1)" :disabled="idx===currentDayItinerary.length-1" class="tap" style="background:none;border:none;cursor:pointer;padding:0;" :style="idx===currentDayItinerary.length-1?'opacity:.25':''">
+                  <span class="material-symbols-outlined" style="font-size:18px;color:#58413d;">arrow_drop_down</span>
+                </button>
+              </div>
+            </div>
+            <!-- Thumb: fixed size, never stretch -->
+            <img :src="getDestInfo(item.dest_id).images[0]" @click="openDetail(item.dest_id)"
+              style="width:54px;height:54px;min-width:54px;border-radius:12px;object-fit:cover;flex-shrink:0;cursor:pointer;" class="tap">
+            <!-- Info -->
+            <div style="flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px;">
+                <select v-model="item.dest_id" @change="debouncedSaveItinerary"
+                  style="flex:1;min-width:0;font-family:inherit;font-size:12px;font-weight:700;color:#001f29;background:transparent;border:none;outline:none;cursor:pointer;padding:0;max-width:100%;">
+                  <option v-for="d in destinations" :key="'o'+item.id+d.id" :value="d.id">{{ d.name }}</option>
+                </select>
+                <button @click="openDetail(item.dest_id)" style="background:none;border:none;flex-shrink:0;padding:0;cursor:pointer;">
+                  <span class="material-symbols-outlined" style="font-size:16px;color:#a83223;">info</span>
+                </button>
+              </div>
+              <!-- Chips -->
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <span class="t-micro" style="background:#d8f2ff;color:#58413d;padding:2px 6px;border-radius:6px;">{{ getDestInfo(item.dest_id).category||'Destinasi' }}</span>
+                <span class="t-micro" style="background:#ffdad4;color:#410100;padding:2px 6px;border-radius:6px;">{{ getDestInfo(item.dest_id).duration }} mnt</span>
+              </div>
+              <!-- Time row: fixed wide inputs, no truncation of AM/PM or digits -->
+              <div style="display:inline-flex;align-items:center;gap:3px;background:#e6f6ff;border-radius:8px;padding:5px 8px;width:fit-content;max-width:100%;">
+                <span class="material-symbols-outlined" style="font-size:14px;color:#735802;flex-shrink:0;">schedule</span>
+                <input type="time" v-model="item.planned_start_time" @change="debouncedSaveItinerary"
+                  style="width:68px;font-size:11px;font-weight:700;font-family:inherit;color:#001f29;background:transparent;border:none;outline:none;padding:0;text-align:center;">
+                <span class="t-micro" style="color:#58413d;flex-shrink:0;padding:0 2px;">–</span>
+                <input type="time" v-model="item.planned_end_time" @change="debouncedSaveItinerary"
+                  style="width:68px;font-size:11px;font-weight:700;font-family:inherit;color:#001f29;background:transparent;border:none;outline:none;padding:0;text-align:center;">
+              </div>
+            </div>
+          </div>
+          <!-- Distance connector -->
+          <div v-if="idx<currentDayItinerary.length-1" style="display:flex;align-items:center;gap:6px;padding:4px 12px;margin-bottom:4px;">
+            <div style="width:1px;height:18px;margin-left:10px;background:repeating-linear-gradient(to bottom,#8c716c 0,#8c716c 3px,transparent 3px,transparent 7px);"></div>
+            <div style="display:inline-flex;align-items:center;gap:4px;background:#d8f2ff;border-radius:999px;padding:3px 10px;" class="t-micro">
+              <span class="material-symbols-outlined" style="font-size:13px;color:#376847;">directions_car</span>
+              {{ getDistance(item.dest_id, currentDayItinerary[idx+1].dest_id) }}
+            </div>
+          </div>
+        </div>
+        <!-- Empty -->
+        <div v-if="currentDayItinerary.length===0" style="text-align:center;padding:40px 16px;background:#fff;border-radius:16px;border:1px dashed #ccedfe;">
+          <span class="material-symbols-outlined" style="font-size:40px;color:#c6e8f8;">calendar_month</span>
+          <div class="t-label" style="color:#58413d;margin-top:8px;">Belum ada destinasi di Day {{ activeDay }}</div>
+        </div>
+      </div>
+
+      <!-- Add button -->
+      <button @click="showMasterModal=true" class="tap t-label" style="width:100%;padding:14px;border-radius:16px;border:1px dashed #ffdad4;background:#fff5f4;color:#a83223;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+        <span class="material-symbols-outlined" style="font-size:18px;">add_circle</span> Tambah Destinasi Day {{ activeDay }}
+      </button>
+    </div>
+
+    <!-- TAB: RUTE -->
+    <div v-else-if="activeTab==='route'" key="route" style="padding:12px;display:flex;flex-direction:column;gap:12px;">
+      <div class="scroll-x no-scrollbar" style="display:flex;gap:6px;padding-bottom:4px;">
+        <button v-for="day in trip.totalDays" :key="'rd'+day" @click="activeDay=day" class="tap t-micro"
+          style="padding:6px 14px;border-radius:999px;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0;"
+          :style="activeDay===day?'background:#a83223;color:#fff':'background:#e6f6ff;color:#58413d'">Day {{ day }}</button>
+      </div>
+      <!-- Partner note -->
+      <div style="background:#ffdf96;border-radius:14px;padding:10px 12px;display:flex;align-items:flex-start;gap:8px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:#a83223;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">{{ (trip.partnerB||'M').charAt(0) }}</div>
+        <div style="flex:1;min-width:0;overflow:hidden;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+            <span class="t-micro" style="color:#251a00;font-weight:800;">Pesan Pasangan</span>
+            <span class="t-micro" style="color:#5a4400;display:flex;align-items:center;gap:2px;">
+              <span class="material-symbols-outlined" style="font-size:12px;color:#376847;">done_all</span> Sync
+            </span>
+          </div>
+          <p style="font-size:11px;color:#251a00;line-height:1.5;margin:0;">"Siapkan outfit matching dan kamera! Banyak spot foto bagus hari ini 📸"</p>
+        </div>
+      </div>
+      <!-- Day stats -->
+      <div style="background:#fff;border-radius:14px;padding:12px;border:1px solid #ccedfe;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#376847;" class="pulse"></div>
+            <span class="t-title" style="color:#001f29;">Jadwal Rute Day {{ activeDay }}</span>
+          </div>
+          <button @click="openDayInMaps" class="tap t-micro" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:999px;background:#a83223;color:#fff;border:none;cursor:pointer;flex-shrink:0;">
+            <span class="material-symbols-outlined" style="font-size:13px;">map</span> Maps
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#e6f6ff;border-radius:10px;padding:8px;">
+          <div><div class="t-micro" style="color:#58413d;">Titik</div><div class="t-title" style="color:#001f29;">{{ currentDayItinerary.length }}</div></div>
+          <div><div class="t-micro" style="color:#58413d;">Hari</div><div class="t-title" style="color:#001f29;">Day {{ activeDay }}</div></div>
+          <div><div class="t-micro" style="color:#58413d;">Mode</div><div class="t-title" style="color:#376847;">Hemat</div></div>
+        </div>
+      </div>
+      <!-- Timeline -->
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div v-for="(item,idx) in currentDayItinerary" :key="'tl'+item.id">
+          <div style="background:#fff;border-radius:16px;padding:12px;border:1px solid #ccedfe;display:flex;align-items:flex-start;gap:10px;">
+            <img :src="getDestInfo(item.dest_id).images[0]" @click="openDetail(item.dest_id)"
+              style="width:54px;height:54px;min-width:54px;border-radius:12px;object-fit:cover;flex-shrink:0;cursor:pointer;" class="tap">
+            <div style="flex:1;min-width:0;overflow:hidden;">
+              <div style="margin-bottom:5px;">
+                <span class="t-micro" style="background:#ffdad4;color:#410100;padding:2px 8px;border-radius:999px;display:inline-block;">
+                  Stop {{ idx+1 }} • {{ item.planned_start_time }}–{{ item.planned_end_time }}
+                </span>
+              </div>
+              <div @click="openDetail(item.dest_id)" class="truncate t-title" style="color:#001f29;cursor:pointer;">{{ getDestInfo(item.dest_id).name }}</div>
+              <div class="t-micro truncate" style="color:#58413d;margin-top:2px;">{{ getDestInfo(item.dest_id).notes }}</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #e6f6ff;">
+                <span class="t-micro" style="color:#58413d;display:flex;align-items:center;gap:3px;">
+                  <span class="material-symbols-outlined" style="font-size:13px;color:#376847;">schedule</span>
+                  {{ getDestInfo(item.dest_id).duration }} mnt
+                </span>
+                <button @click="openDetail(item.dest_id)" class="t-micro tap" style="background:none;border:none;color:#a83223;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:2px;">
+                  Detail <span class="material-symbols-outlined" style="font-size:13px;">chevron_right</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div v-if="idx<currentDayItinerary.length-1" style="display:inline-flex;align-items:center;gap:4px;margin:4px 0 4px 12px;background:#d8f2ff;border-radius:999px;padding:3px 10px;" class="t-micro">
+            <span class="material-symbols-outlined" style="font-size:13px;color:#376847;">directions_car</span>
+            {{ getDistance(item.dest_id, currentDayItinerary[idx+1].dest_id) }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: LIVE -->
+    <div v-else-if="activeTab==='live'" key="live" style="padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:24px;">
+      <div style="text-align:center;width:100%;">
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;border:1px solid #fecaca;color:#b91c1c;padding:4px 14px;border-radius:999px;margin-bottom:10px;" class="t-micro">
+          <span style="position:relative;width:8px;height:8px;display:inline-block;">
+            <span style="position:absolute;inset:0;border-radius:50%;background:#f87171;opacity:.75;" class="ping"></span>
+            <span style="position:relative;width:8px;height:8px;border-radius:50%;background:#dc2626;display:block;"></span>
+          </span>
+          MODE LIVE TRIP
+        </div>
+        <div class="t-micro" style="color:#58413d;letter-spacing:.1em;text-transform:uppercase;">Sedang Di</div>
+        <div class="t-display" style="color:#001f29;margin-top:4px;">{{ getDestInfo(liveItem.dest_id).name }}</div>
+        <div v-if="liveItem.delay_minutes>0" class="t-label" style="color:#d97706;margin-top:4px;">
+          <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">alarm_add</span> +{{ liveItem.delay_minutes }} menit
+        </div>
+      </div>
+      <!-- Ring timer -->
+      <div style="position:relative;width:180px;height:180px;flex-shrink:0;">
+        <svg style="position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#e6f6ff" stroke-width="8"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#a83223" stroke-width="8"
+            :stroke-dasharray="277" :stroke-dashoffset="timerDashOffset" style="transition:stroke-dashoffset 1s linear;"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <span class="material-symbols-outlined" style="font-size:22px;color:#a83223;">hourglass_top</span>
+          <div style="font-size:36px;font-weight:800;color:#001f29;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1;">
+            {{ timerDisplay.minutes }}<span style="font-size:22px;color:#58413d;font-weight:700;">:{{ timerDisplay.seconds }}</span>
+          </div>
+          <div class="t-micro" style="color:#58413d;text-transform:uppercase;letter-spacing:.08em;">Sisa Waktu</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:280px;">
+        <button @click="delayLive" class="tap" style="background:#fff;border:1px solid #ffdf96;border-radius:16px;padding:16px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;">
+          <span class="material-symbols-outlined" style="font-size:22px;color:#735802;">alarm_add</span>
+          <span class="t-micro" style="color:#735802;">Tunda 15 Mnt</span>
+        </button>
+        <button @click="finishLive" class="tap" style="background:#a83223;border:none;border-radius:16px;padding:16px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;box-shadow:0 8px 20px -4px rgba(168,50,35,.4);">
+          <span class="material-symbols-outlined" style="font-size:22px;color:#fff;">sports_score</span>
+          <span class="t-micro" style="color:#fff;">Selesai / Lanjut</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB: BUDGET -->
+    <div v-else-if="activeTab==='budget'" key="budget" style="padding:12px;display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;background:#e6f6ff;border-radius:14px;padding:10px 12px;border:1px solid #ccedfe;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;color:#376847;font-variation-settings:'FILL' 1">favorite</span>
+          <span class="t-label" style="color:#001f29;">Kas Bersama</span>
+        </div>
+        <span style="display:inline-flex;align-items:center;gap:4px;background:#b6edc2;color:#3b6d4b;padding:3px 8px;border-radius:999px;" class="t-micro">
+          <span style="width:6px;height:6px;border-radius:50%;background:#376847;display:inline-block;"></span> Transparan
+        </span>
+      </div>
+      <div style="background:#fff;border-radius:16px;padding:16px;border:1px solid #ccedfe;display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+          <div style="min-width:0;overflow:hidden;">
+            <div class="t-micro" style="color:#58413d;text-transform:uppercase;letter-spacing:.05em;">Total Terpakai</div>
+            <div class="t-display" style="color:#001f29;margin-top:2px;">{{ formatRp(totalSpent) }}</div>
+          </div>
+          <div style="display:inline-flex;align-items:center;gap:4px;background:#b6edc2;color:#3b6d4b;padding:4px 10px;border-radius:999px;flex-shrink:0;" class="t-micro">
+            <span class="material-symbols-outlined" style="font-size:14px;">check_circle</span> Sehat
+          </div>
+        </div>
+        <div>
+          <div style="width:100%;height:10px;background:#e6f6ff;border-radius:999px;overflow:hidden;display:flex;padding:1px;">
+            <div style="height:100%;background:#a83223;border-radius:999px 0 0 999px;transition:width .5s;" :style="{width:Math.min((totalSpent/(trip.budget||1))*50,50)+'%'}"></div>
+            <div style="height:100%;background:#376847;border-radius:0 999px 999px 0;transition:width .5s;" :style="{width:Math.min((totalSpent/(trip.budget||1))*50,50)+'%'}"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px;">
+            <div style="display:flex;gap:10px;">
+              <span class="t-micro" style="color:#58413d;display:inline-flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#a83223;display:inline-block;"></span>{{ trip.partnerA }}</span>
+              <span class="t-micro" style="color:#58413d;display:inline-flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#376847;display:inline-block;"></span>{{ trip.partnerB }}</span>
+            </div>
+            <span class="t-micro" style="color:#001f29;font-weight:800;">{{ Math.round((totalSpent/(trip.budget||1))*100) }}% Plafon</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:#e6f6ff;border-radius:12px;padding:10px;">
+            <div class="t-micro" style="color:#58413d;">Plafon Maks</div>
+            <div class="t-title" style="color:#001f29;margin-top:2px;">{{ formatRp(trip.budget) }}</div>
+          </div>
+          <div style="background:#b6edc2;border-radius:12px;padding:10px;">
+            <div class="t-micro" style="color:#3b6d4b;">Sisa Aman</div>
+            <div class="t-title" style="color:#376847;margin-top:2px;">{{ formatRp((trip.budget||0)-totalSpent) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span class="t-title" style="color:#001f29;">Riwayat Kas</span>
+          <button @click="showAddExpenseModal=true" class="tap t-micro" style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:10px;background:#a83223;color:#fff;border:none;cursor:pointer;flex-shrink:0;">
+            <span class="material-symbols-outlined" style="font-size:14px;">add</span> Catat
+          </button>
+        </div>
+        <div v-for="exp in expenses" :key="'ex'+exp.id" style="background:#fff;border-radius:14px;padding:10px 12px;border:1px solid #ccedfe;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;">
+            <div style="width:32px;height:32px;border-radius:10px;background:#e6f6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span class="material-symbols-outlined" style="font-size:16px;color:#a83223;">receipt_long</span>
+            </div>
+            <div style="min-width:0;overflow:hidden;">
+              <div class="t-label truncate" style="color:#001f29;">{{ exp.title }}</div>
+              <div class="t-micro" style="color:#58413d;">50:50 • {{ exp.category }}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <div class="t-label" style="color:#001f29;font-weight:800;white-space:nowrap;">{{ formatRp(exp.amount) }}</div>
+            <button @click="deleteExpenseItem(exp.id)" style="background:none;border:none;cursor:pointer;padding:0;" class="tap">
+              <span class="material-symbols-outlined" style="font-size:16px;color:#ef4444;">delete</span>
+            </button>
+          </div>
+        </div>
+        <div v-if="expenses.length===0" style="text-align:center;padding:32px 16px;background:#fff;border-radius:16px;border:1px solid #e6f6ff;color:#58413d;">
+          <span class="material-symbols-outlined" style="font-size:36px;color:#ccedfe;">receipt</span>
+          <div class="t-label" style="margin-top:8px;">Belum ada catatan</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: MASTER/KATALOG -->
+    <div v-else-if="activeTab==='master'" key="master" style="padding:12px;display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <div class="t-headline" style="color:#001f29;">Katalog Destinasi</div>
+        <div class="t-micro" style="color:#58413d;margin-top:2px;">Database referensi lengkap</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div v-for="dest in destinations" :key="'cat'+dest.id" style="background:#fff;border-radius:16px;padding:12px;border:1px solid #ccedfe;display:flex;gap:10px;">
+          <img :src="dest.images[0]" @click="openDetail(dest.id)" style="width:62px;height:62px;min-width:62px;border-radius:12px;object-fit:cover;flex-shrink:0;cursor:pointer;" class="tap">
+          <div style="flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;">
+            <div>
+              <div @click="openDetail(dest.id)" class="truncate t-title" style="color:#001f29;cursor:pointer;">{{ dest.name }}</div>
+              <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">
+                <span class="t-micro" style="background:#d8f2ff;color:#58413d;padding:2px 6px;border-radius:6px;">{{ dest.duration }} mnt</span>
+                <span v-if="dest.cost>0" class="t-micro" style="background:#ffdad4;color:#410100;padding:2px 6px;border-radius:6px;font-weight:800;">{{ formatRp(dest.cost) }}</span>
+              </div>
+              <div class="t-micro" style="color:#58413d;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ dest.notes }}</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #e6f6ff;">
+              <a v-if="dest.maps_url" :href="dest.maps_url" target="_blank" class="t-micro tap" style="color:#a83223;display:flex;align-items:center;gap:2px;text-decoration:none;">
+                <span class="material-symbols-outlined" style="font-size:13px;">location_on</span> Maps
+              </a>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <button v-for="day in trip.totalDays" :key="'add'+dest.id+day" @click="addDestination(dest.id,day)" class="tap t-micro"
+                  style="padding:3px 8px;border-radius:8px;border:none;cursor:pointer;background:#ffdad4;color:#a83223;font-weight:800;">
+                  +D{{ day }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    </transition>
+  </div><!-- end .content-scroll -->
+
+  <!-- BOTTOM NAV: flex-shrink:0 so it stays at bottom -->
+  <nav style="flex-shrink:0;height:60px;background:rgba(243,250,255,.97);backdrop-filter:blur(12px);border-top:1px solid #ccedfe;padding-bottom:env(safe-area-inset-bottom,0px);">
+    <div style="height:60px;display:flex;align-items:center;justify-content:space-around;width:100%;">
+      <button @click="activeTab='plan'" class="tap" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 4px;min-width:48px;"
+        :style="activeTab==='plan'?'color:#a83223':'color:#8c716c'">
+        <span class="material-symbols-outlined" style="font-size:22px;">swap_vert</span>
+        <span class="t-micro">URUTAN</span>
+      </button>
+      <button @click="activeTab='route'" class="tap" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 4px;min-width:48px;"
+        :style="activeTab==='route'?'color:#a83223':'color:#8c716c'">
+        <span class="material-symbols-outlined" style="font-size:22px;">route</span>
+        <span class="t-micro">RUTE</span>
+      </button>
+      <!-- FAB -->
+      <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+        <button @click="activeTab='live'" class="tap"
+          style="width:50px;height:50px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:-20px;box-shadow:0 6px 20px -4px rgba(168,50,35,.5);"
+          :style="activeTab==='live'?'background:#001f29':'background:#a83223'">
+          <span class="material-symbols-outlined" style="font-size:24px;color:#fff;">explore</span>
+        </button>
+      </div>
+      <button @click="activeTab='budget'" class="tap" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 4px;min-width:48px;"
+        :style="activeTab==='budget'?'color:#a83223':'color:#8c716c'">
+        <span class="material-symbols-outlined" style="font-size:22px;">payments</span>
+        <span class="t-micro">BUDGET</span>
+      </button>
+      <button @click="activeTab='master'" class="tap" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 4px;min-width:48px;"
+        :style="activeTab==='master'?'color:#a83223':'color:#8c716c'">
+        <span class="material-symbols-outlined" style="font-size:22px;">bookmark</span>
+        <span class="t-micro">MASTER</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MODAL: Pilih Destinasi -->
+  <transition name="slide-up">
+  <div v-if="showMasterModal" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;" @click.self="showMasterModal=false">
+    <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:78vh;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #e6f6ff;flex-shrink:0;">
+        <div>
+          <div class="t-title" style="color:#001f29;">Pilih Destinasi</div>
+          <div class="t-micro" style="color:#58413d;">Tambah ke Day {{ activeDay }}</div>
+        </div>
+        <button @click="showMasterModal=false" style="width:28px;height:28px;border-radius:50%;background:#e6f6ff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;" class="tap">
+          <span class="material-symbols-outlined" style="font-size:16px;color:#58413d;">close</span>
+        </button>
+      </div>
+      <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:12px;display:flex;flex-direction:column;gap:8px;">
+        <div v-for="dest in destinations" :key="'md'+dest.id" style="background:#f3faff;border-radius:14px;padding:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;">
+            <img :src="dest.images[0]" style="width:40px;height:40px;min-width:40px;border-radius:10px;object-fit:cover;flex-shrink:0;">
+            <div style="min-width:0;overflow:hidden;">
+              <div class="t-label truncate" style="color:#001f29;">{{ dest.name }}</div>
+              <div class="t-micro" style="color:#58413d;">{{ dest.duration }} mnt</div>
+            </div>
+          </div>
+          <button @click="addDestination(dest.id,activeDay)" class="tap t-micro" style="padding:6px 14px;border-radius:10px;background:#a83223;color:#fff;border:none;cursor:pointer;flex-shrink:0;">+ Pilih</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </transition>
+
+  <!-- MODAL: Detail (Carousel + Sumber Threads) -->
+  <transition name="slide-up">
+  <div v-if="showDetailModal && selectedDestDetail" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;" @click.self="showDetailModal=false">
+    <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="width:36px;height:4px;border-radius:999px;background:#d8f2ff;margin:10px auto 0;"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 12px;border-bottom:1px solid #e6f6ff;flex-shrink:0;">
+        <div class="t-title truncate" style="color:#001f29;flex:1;min-width:0;padding-right:8px;">{{ selectedDestDetail.name }}</div>
+        <button @click="showDetailModal=false" style="width:28px;height:28px;border-radius:50%;background:#e6f6ff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" class="tap">
+          <span class="material-symbols-outlined" style="font-size:16px;color:#58413d;">close</span>
+        </button>
+      </div>
+      <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:14px;display:flex;flex-direction:column;gap:12px;">
+        
+        <!-- Image Carousel -->
+        <div style="width:100%;height:180px;border-radius:16px;overflow:hidden;position:relative;background:#e6f6ff;flex-shrink:0;">
+          <img :src="selectedDestDetail.images[activeImgIdx] || selectedDestDetail.images[0]" style="width:100%;height:100%;object-fit:cover;transition:opacity .2s;">
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.65),transparent 60%);pointer-events:none;"></div>
+          
+          <!-- Carousel Arrows (if > 1 image) -->
+          <div v-if="selectedDestDetail.images && selectedDestDetail.images.length > 1" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 8px;pointer-events:none;">
+            <button @click.stop="prevDetailImg" class="tap" style="width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+              <span class="material-symbols-outlined" style="font-size:18px;">chevron_left</span>
+            </button>
+            <button @click.stop="nextDetailImg" class="tap" style="width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+              <span class="material-symbols-outlined" style="font-size:18px;">chevron_right</span>
+            </button>
+          </div>
+
+          <!-- Indicator Dots & Badges -->
+          <div style="position:absolute;bottom:10px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;pointer-events:none;">
+            <div style="display:flex;gap:6px;">
+              <span class="t-micro" style="background:rgba(0,0,0,.5);color:#fff;padding:3px 8px;border-radius:6px;">{{ selectedDestDetail.duration }} mnt</span>
+              <span v-if="selectedDestDetail.cost>0" class="t-micro" style="background:#a83223;color:#fff;padding:3px 8px;border-radius:6px;font-weight:800;">{{ formatRp(selectedDestDetail.cost) }}</span>
+            </div>
+            <!-- Dots -->
+            <div v-if="selectedDestDetail.images && selectedDestDetail.images.length > 1" style="display:flex;gap:4px;">
+              <span v-for="(img, idx) in selectedDestDetail.images" :key="'dot'+idx"
+                style="width:6px;height:6px;border-radius:50%;display:inline-block;transition:all .2s;"
+                :style="activeImgIdx===idx?'background:#fff;width:14px;border-radius:999px;':'background:rgba(255,255,255,.5);'"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons: Google Maps & Link Sumber Threads -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <a :href="selectedDestDetail.maps_url" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:11px;border-radius:12px;background:#e6f6ff;text-decoration:none;color:#001f29;" class="tap t-label">
+            <span class="material-symbols-outlined" style="font-size:16px;color:#a83223;">location_on</span> Buka Maps
+          </a>
+          <a :href="selectedDestDetail.link" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:11px;border-radius:12px;background:#ffdad4;text-decoration:none;color:#410100;font-weight:700;" class="tap t-label">
+            <span class="material-symbols-outlined" style="font-size:16px;color:#a83223;">alternate_email</span> Sumber Threads
+          </a>
+        </div>
+
+        <div>
+          <div class="t-micro" style="color:#58413d;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Catatan Master</div>
+          <div class="t-body" style="background:#f3faff;border:1px solid #e6f6ff;border-radius:12px;padding:12px;color:#001f29;white-space:pre-line;line-height:1.6;">{{ selectedDestDetail.notes }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </transition>
+
+  <!-- MODAL: Add Expense -->
+  <transition name="slide-up">
+  <div v-if="showAddExpenseModal" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;" @click.self="showAddExpenseModal=false">
+    <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #e6f6ff;flex-shrink:0;">
+        <div>
+          <div class="t-title" style="color:#001f29;">Catat Pengeluaran</div>
+          <div class="t-micro" style="color:#58413d;">Otomatis split 50:50</div>
+        </div>
+        <button @click="showAddExpenseModal=false" style="width:28px;height:28px;border-radius:50%;background:#e6f6ff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;" class="tap">
+          <span class="material-symbols-outlined" style="font-size:16px;color:#58413d;">close</span>
+        </button>
+      </div>
+      <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:14px;display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <div class="t-micro" style="color:#58413d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Nama Pengeluaran</div>
+          <input type="text" v-model="newExpense.title" placeholder="Sarapan, Bensin, Tiket..."
+            style="width:100%;font-family:inherit;font-size:13px;font-weight:600;color:#001f29;background:#f3faff;border:1px solid #ccedfe;border-radius:12px;padding:10px 12px;outline:none;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <div class="t-micro" style="color:#58413d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Nominal (Rp)</div>
+            <input type="number" v-model="newExpense.amount" placeholder="0"
+              style="width:100%;font-family:inherit;font-size:13px;font-weight:700;color:#001f29;background:#f3faff;border:1px solid #ccedfe;border-radius:12px;padding:10px 12px;outline:none;">
+          </div>
+          <div>
+            <div class="t-micro" style="color:#58413d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Kategori</div>
+            <select v-model="newExpense.category"
+              style="width:100%;font-family:inherit;font-size:13px;font-weight:600;color:#001f29;background:#f3faff;border:1px solid #ccedfe;border-radius:12px;padding:10px 12px;outline:none;-webkit-appearance:none;">
+              <option value="Food">Kuliner</option>
+              <option value="Transport">Transport</option>
+              <option value="Ticket">Tiket</option>
+              <option value="Hotel">Hotel</option>
+              <option value="Shopping">Belanja</option>
+              <option value="General">Lainnya</option>
+            </select>
+          </div>
+        </div>
+        <button @click="saveExpenseItem" :disabled="isSavingExpense" class="tap t-label"
+          style="width:100%;padding:13px;border-radius:14px;border:none;cursor:pointer;background:#a83223;color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 6px 18px -4px rgba(168,50,35,.45);">
+          <span class="material-symbols-outlined" style="font-size:16px;" :class="isSavingExpense?'spin':''">{{ isSavingExpense?'sync':'check' }}</span>
+          {{ isSavingExpense?'Menyimpan...':'Simpan Pengeluaran' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  </transition>
+
+</div>
+<script>
+var _Vue = Vue;
+var createApp = _Vue.createApp;
+var ref = _Vue.ref;
+var computed = _Vue.computed;
+var onMounted = _Vue.onMounted;
+var onUnmounted = _Vue.onUnmounted;
+
+var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbx7uSMhm7AZWBs2K1Y2qUdxTK1vvQ4AiCps_uk4KZc_gXFJEpSL-tFY3rnBGgx60i4IHQ/exec';
+
+var gasRun = async function(action, payload) {
+    if (action === 'getInitialData') {
+        var tripId = payload || 'TRIP-SBY-001';
+        var url = GAS_API_URL + '?action=getInitialData&trip_id=' + encodeURIComponent(tripId);
+        var res = await fetch(url);
+        return await res.json();
+    } else {
+        var bodyData = {
+            action: action,
+            data: payload
+        };
+        var res = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify(bodyData)
+        });
+        return await res.json();
+    }
+};
+
+createApp({
+    setup: function() {
+        var activeTab = ref('plan'); 
+        var activeDay = ref(1);
+        var isLoading = ref(true);
+        var isRefreshing = ref(false);
+        var isSavingExpense = ref(false);
+        
+        var showMasterModal = ref(false);
+        var showDetailModal = ref(false);
+        var selectedDestDetail = ref(null);
+        var activeImgIdx = ref(0);
+        
+        var nextDetailImg = function() {
+            if (!selectedDestDetail.value || !selectedDestDetail.value.images) return;
+            var len = selectedDestDetail.value.images.length;
+            if (len > 1) {
+                activeImgIdx.value = (activeImgIdx.value + 1) % len;
+            }
+        };
+        
+        var prevDetailImg = function() {
+            if (!selectedDestDetail.value || !selectedDestDetail.value.images) return;
+            var len = selectedDestDetail.value.images.length;
+            if (len > 1) {
+                activeImgIdx.value = (activeImgIdx.value - 1 + len) % len;
+            }
+        };
+        var showAddExpenseModal = ref(false);
+        
+        var syncStatus = ref({ show: false, message: '', type: 'success' });
+        var toastTimeout = null;
+
+        var showToast = function(message, type, duration) {
+            type = type || 'success';
+            duration = duration || 2500;
+            clearTimeout(toastTimeout);
+            syncStatus.value = { show: true, message: message, type: type };
+            toastTimeout = setTimeout(function() {
+                syncStatus.value.show = false;
+            }, duration);
+        };
+
+        var trip = ref({
+            id: 'TRIP-SBY-001', 
+            name: 'Eksplorasi Surabaya', 
+            budget: 8000000, 
+            partnerA: 'Ahmad', 
+            partnerB: 'Mimma', 
+            totalDays: 4
+        });
+        
+        var allTrips = ref([]);
+        var selectedTripId = ref('TRIP-001');
+
+        var newExpense = ref({
+            title: '', 
+            category: 'Food', 
+            amount: null, 
+            paid_by: 'Ahmad', 
+            split_type: '50:50'
+        });
+
+        var destinations = ref([]);
+        var itinerary = ref([]);
+        var distances = ref({});
+        var expenses = ref([]);
+
+        // Live Timer State
+        var timerSeconds = ref(45 * 60);
+        var timerTotalSeconds = ref(45 * 60);
+        var timerInterval = null;
+
+        var timerDisplay = computed(function() {
+            var m = Math.floor(timerSeconds.value / 60);
+            var s = timerSeconds.value % 60;
+            return {
+                minutes: String(m).padStart(2, '0'),
+                seconds: String(s).padStart(2, '0')
+            };
+        });
+
+        var timerDashOffset = computed(function() {
+            var total = timerTotalSeconds.value || 1;
+            var progress = timerSeconds.value / total;
+            return Math.round(289 * (1 - progress));
+        });
+
+        var startLiveTimer = function() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(function() {
+                if (timerSeconds.value > 0) {
+                    timerSeconds.value--;
+                }
+            }, 1000);
+        };
+
+        var currentDayItinerary = computed(function() {
+            return itinerary.value
+                .filter(function(i) { return Number(i.day) === Number(activeDay.value); })
+                .sort(function(a, b) { return Number(a.order) - Number(b.order); });
+        });
+
+        var liveItem = computed(function() {
+            var items = currentDayItinerary.value;
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].status === 'ONGOING') return items[i];
+            }
+            for (var j = 0; j < items.length; j++) {
+                if (items[j].status === 'PENDING') return items[j];
+            }
+            return items[0] || { dest_id: null, delay_minutes: 0 };
+        });
+
+        var totalSpent = computed(function() {
+            return expenses.value.reduce(function(sum, exp) { 
+                return sum + (Number(exp.amount) || 0); 
+            }, 0);
+        });
+
+        var splitSummary = computed(function() {
+            var ahmadBalance = 0; 
+            var mimmaBalance = 0;
+            var pA = trip.value.partnerA || 'Ahmad';
+            var pB = trip.value.partnerB || 'Mimma';
+
+            expenses.value.forEach(function(exp) {
+                if (exp.paid_by === pA) {
+                    mimmaBalance += (Number(exp.owed_b) || 0);
+                } else if (exp.paid_by === pB) {
+                    ahmadBalance += (Number(exp.owed_a) || 0);
+                }
+            });
+
+            var netBalance = ahmadBalance - mimmaBalance;
+            if (netBalance > 0) {
+                return { debtor: pA, creditor: pB, amount: netBalance };
+            } else if (netBalance < 0) {
+                return { debtor: pB, creditor: pA, amount: Math.abs(netBalance) };
+            } else {
+                return { debtor: 'Lunas', creditor: 'Balance', amount: 0 };
+            }
+        });
+
+        var getDestInfo = function(id) {
+            var dest = destinations.value.find(function(d) { return String(d.id) === String(id); });
+            return dest || { 
+                name: 'Destinasi', 
+                duration: 60, 
+                cost: 0,
+                images: ['https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80'],
+                notes: 'Detail destinasi'
+            };
+        };
+        
+        var getDistance = function(id1, id2) {
+            var key1 = id1 + '_' + id2;
+            var key2 = id2 + '_' + id1;
+            if (distances.value[key1]) return distances.value[key1];
+            if (distances.value[key2]) return distances.value[key2];
+            return 'Rute terhubung';
+        };
+        
+        var formatRp = function(num) {
+            var n = Number(num) || 0;
+            return 'Rp ' + n.toLocaleString('id-ID');
+        };
+
+        var getCategoryIcon = function(cat) {
+            var c = String(cat || '').toLowerCase();
+            if (c.indexOf('ticket') !== -1 || c.indexOf('tiket') !== -1 || c.indexOf('atraksi') !== -1) return 'fa-ticket-alt';
+            if (c.indexOf('food') !== -1 || c.indexOf('kuliner') !== -1 || c.indexOf('makan') !== -1) return 'fa-utensils';
+            if (c.indexOf('transport') !== -1 || c.indexOf('sewa') !== -1 || c.indexOf('mobil') !== -1 || c.indexOf('motor') !== -1 || c.indexOf('bensin') !== -1) return 'fa-motorcycle';
+            if (c.indexOf('hotel') !== -1 || c.indexOf('penginapan') !== -1 || c.indexOf('villa') !== -1) return 'fa-bed';
+            if (c.indexOf('shop') !== -1 || c.indexOf('belanja') !== -1 || c.indexOf('oleh') !== -1) return 'fa-bag-shopping';
+            return 'fa-receipt';
+        };
+        
+        var getCategoryColor = function(cat) {
+            var c = String(cat || '').toLowerCase();
+            if (c.indexOf('ticket') !== -1 || c.indexOf('tiket') !== -1) return 'bg-blue-50 text-blue-500';
+            if (c.indexOf('food') !== -1 || c.indexOf('kuliner') !== -1) return 'bg-orange-50 text-orange-500';
+            if (c.indexOf('transport') !== -1 || c.indexOf('sewa') !== -1) return 'bg-brand-50 text-brand-500';
+            if (c.indexOf('hotel') !== -1) return 'bg-indigo-50 text-indigo-500';
+            if (c.indexOf('shop') !== -1 || c.indexOf('oleh') !== -1) return 'bg-pink-50 text-pink-500';
+            return 'bg-gray-50 text-gray-500';
+        };
+
+        var loadInitialData = async function(targetTripId) {
+            isLoading.value = true;
+            try {
+                var res = await gasRun('getInitialData', targetTripId || selectedTripId.value);
+                if (res && res.trip) {
+                    trip.value = res.trip;
+                    selectedTripId.value = res.trip.id;
+                    allTrips.value = res.allTrips || [];
+                    destinations.value = res.destinations || [];
+                    itinerary.value = res.itinerary || [];
+                    distances.value = res.distances || {};
+                    expenses.value = res.expenses || [];
+                    newExpense.value.paid_by = res.trip.partnerA;
+                }
+            } catch (err) {
+                console.error('Gagal load data dari GAS:', err);
+                showToast('Gagal memuat data dari Sheet', 'error');
+            } finally {
+                isLoading.value = false;
+                isRefreshing.value = false;
+            }
+        };
+
+        var refreshData = async function() {
+            isRefreshing.value = true;
+            await loadInitialData(selectedTripId.value);
+            showToast('Data Sheet tersinkronisasi');
+        };
+
+        var switchTrip = function() {
+            loadInitialData(selectedTripId.value);
+        };
+
+        var saveItineraryTimer = null;
+        var debouncedSaveItinerary = function() {
+            showToast('Menyimpan perubahan...', 'saving', 10000);
+            clearTimeout(saveItineraryTimer);
+            saveItineraryTimer = setTimeout(async function() {
+                try {
+                    var payload = {
+                        trip_id: trip.value.id,
+                        items: itinerary.value.map(function(item) {
+                            return {
+                                id: item.id,
+                                day: Number(item.day),
+                                order: Number(item.order),
+                                dest_id: item.dest_id,
+                                planned_start_time: item.planned_start_time,
+                                planned_end_time: item.planned_end_time,
+                                delay_minutes: Number(item.delay_minutes || 0),
+                                status: item.status || 'PENDING'
+                            };
+                        })
+                    };
+                    await gasRun('saveItineraryBatch', payload);
+                    showToast('Itinerary tersimpan di Google Sheet');
+                } catch (err) {
+                    console.error('Save itinerary error:', err);
+                    showToast('Gagal menyimpan itinerary', 'error');
+                }
+            }, 600);
+        };
+
+        var moveItem = function(index, direction) {
+            var dayItems = currentDayItinerary.value;
+            if (index + direction < 0 || index + direction >= dayItems.length) return;
+            
+            var itemA = dayItems[index];
+            var itemB = dayItems[index + direction];
+            
+            var tempOrder = itemA.order;
+            itemA.order = itemB.order;
+            itemB.order = tempOrder;
+
+            dayItems.sort(function(a, b) { return a.order - b.order; }).forEach(function(item, idx) {
+                item.order = idx + 1;
+            });
+
+            debouncedSaveItinerary();
+        };
+
+        var openDetail = function(dest_id) {
+            selectedDestDetail.value = getDestInfo(dest_id);
+            activeImgIdx.value = 0;
+            showDetailModal.value = true;
+        };
+
+        var openDayInMaps = function() {
+            var items = currentDayItinerary.value;
+            if (items.length === 0) return;
+            var dests = items.map(function(i) { return getDestInfo(i.dest_id); }).filter(Boolean);
+            if (dests.length === 1) {
+                window.open(dests[0].maps_url, '_blank');
+            } else {
+                var origin = dests[0].lat && dests[0].lng ? (dests[0].lat + ',' + dests[0].lng) : encodeURIComponent(dests[0].name);
+                var destination = dests[dests.length-1].lat && dests[dests.length-1].lng ? (dests[dests.length-1].lat + ',' + dests[dests.length-1].lng) : encodeURIComponent(dests[dests.length-1].name);
+                var waypoints = dests.slice(1, -1).map(function(d) { 
+                    return d.lat && d.lng ? (d.lat + ',' + d.lng) : encodeURIComponent(d.name); 
+                }).join('|');
+                var url = 'https://www.google.com/maps/dir/?api=1&origin=' + origin + '&destination=' + destination + (waypoints ? '&waypoints=' + waypoints : '');
+                window.open(url, '_blank');
+            }
+        };
+
+        var addDestination = function(dest_id, dayNumber) {
+            dayNumber = dayNumber || activeDay.value;
+            var targetItinerary = itinerary.value.filter(function(i) { return Number(i.day) === Number(dayNumber); });
+            var newOrder = targetItinerary.length + 1;
+            var dest = getDestInfo(dest_id);
+            
+            var startTime = '09:00';
+            var endTime = '11:00';
+            if (targetItinerary.length > 0) {
+                var last = targetItinerary[targetItinerary.length - 1];
+                startTime = last.planned_end_time || '13:00';
+                try {
+                    var parts = startTime.split(':').map(Number);
+                    var h = parts[0];
+                    var m = parts[1];
+                    var dur = dest.duration || 60;
+                    var totalM = h * 60 + m + dur;
+                    var endH = String(Math.floor(totalM / 60) % 24).padStart(2, '0');
+                    var endM = String(totalM % 60).padStart(2, '0');
+                    endTime = endH + ':' + endM;
+                } catch (e) {
+                    endTime = '15:00';
+                }
+            }
+
+            itinerary.value.push({
+                id: 'ITN-' + String(Date.now()).slice(-6),
+                trip_id: trip.value.id,
+                day: Number(dayNumber),
+                order: newOrder,
+                dest_id: dest_id,
+                planned_start_time: startTime,
+                planned_end_time: endTime, 
+                delay_minutes: 0,
+                status: 'PENDING'
+            });
+            
+            showMasterModal.value = false;
+            activeDay.value = dayNumber;
+            activeTab.value = 'plan';
+            debouncedSaveItinerary();
+        };
+        
+        var saveExpenseItem = async function() {
+            if (!newExpense.value.title || !newExpense.value.amount) {
+                showToast('Isi judul & nominal pengeluaran', 'error');
+                return;
+            }
+
+            isSavingExpense.value = true;
+            try {
+                var amountNum = parseFloat(newExpense.value.amount);
+                var owedA = 0;
+                var owedB = 0;
+
+                if (newExpense.value.split_type === '50:50') {
+                    owedA = amountNum / 2;
+                    owedB = amountNum / 2;
+                } else if (newExpense.value.split_type === 'Full A') {
+                    owedA = amountNum;
+                    owedB = 0;
+                } else if (newExpense.value.split_type === 'Full B') {
+                    owedA = 0;
+                    owedB = amountNum;
+                }
+
+                var payload = {
+                    id: 'EXP-' + String(Date.now()).slice(-6),
+                    trip_id: trip.value.id,
+                    title: newExpense.value.title,
+                    category: newExpense.value.category,
+                    amount: amountNum,
+                    paid_by: newExpense.value.paid_by,
+                    split_type: newExpense.value.split_type,
+                    owed_by_a: owedA,
+                    owed_by_b: owedB
+                };
+
+                await gasRun('saveExpense', payload);
+                
+                expenses.value.unshift({
+                    id: payload.id,
+                    trip_id: payload.trip_id,
+                    title: payload.title,
+                    category: payload.category,
+                    amount: amountNum,
+                    paid_by: payload.paid_by,
+                    split_type: payload.split_type,
+                    owed_a: owedA,
+                    owed_b: owedB
+                });
+
+                newExpense.value = { 
+                    title: '', 
+                    category: 'Food', 
+                    amount: null, 
+                    paid_by: trip.value.partnerA, 
+                    split_type: '50:50' 
+                };
+                showAddExpenseModal.value = false;
+                showToast('Pengeluaran berhasil dicatat');
+            } catch (err) {
+                console.error('Save expense error:', err);
+                showToast('Gagal menyimpan pengeluaran', 'error');
+            } finally {
+                isSavingExpense.value = false;
+            }
+        };
+        
+        var deleteExpenseItem = async function(id) {
+            if (!confirm('Hapus catatan pengeluaran ini?')) return;
+            try {
+                await gasRun('deleteExpense', { id: id, trip_id: trip.value.id });
+                expenses.value = expenses.value.filter(function(exp) { return exp.id !== id; });
+                showToast('Pengeluaran dihapus');
+            } catch (err) {
+                console.error('Delete expense error:', err);
+                showToast('Gagal menghapus pengeluaran', 'error');
+            }
+        };
+
+        var delayLive = async function() {
+            var current = liveItem.value;
+            if (!current || !current.id) return;
+
+            current.delay_minutes = (Number(current.delay_minutes) || 0) + 15;
+            timerSeconds.value += 15 * 60;
+            timerTotalSeconds.value += 15 * 60;
+
+            try {
+                await gasRun('updateItineraryStatus', {
+                    id: current.id,
+                    delay_minutes: current.delay_minutes
+                });
+                showToast('Waktu berhasil ditunda +15 menit');
+            } catch (err) {
+                console.error('Delay error:', err);
+            }
+        };
+
+        var finishLive = async function() {
+            var dayItems = currentDayItinerary.value;
+            var current = liveItem.value;
+            if (!current || !current.id) return;
+
+            current.status = 'DONE';
+            
+            var nextPending = null;
+            for (var i = 0; i < dayItems.length; i++) {
+                if (dayItems[i].status === 'PENDING' && dayItems[i].order > current.order) {
+                    nextPending = dayItems[i];
+                    break;
+                }
+            }
+
+            if (nextPending) {
+                nextPending.status = 'ONGOING';
+                var dest = getDestInfo(nextPending.dest_id);
+                timerSeconds.value = (dest.duration || 45) * 60;
+                timerTotalSeconds.value = timerSeconds.value;
+            }
+
+            try {
+                await gasRun('saveItineraryBatch', {
+                    trip_id: trip.value.id,
+                    items: itinerary.value
+                });
+                showToast('Destinasi selesai, lanjut ke jadwal berikutnya');
+            } catch (err) {
+                console.error('Finish live error:', err);
+            }
+        };
+
+        onMounted(function() {
+            loadInitialData();
+            startLiveTimer();
+            // Tell GAS host to resize iframe to full viewport
+            try {
+                if (typeof google !== 'undefined' && google.script && google.script.host) {
+                    google.script.host.setHeight(window.innerHeight);
+                    google.script.host.setWidth(window.innerWidth);
+                }
+            } catch(e) {}
+            // Also dynamically set on resize
+            window.addEventListener('resize', function() {
+                try {
+                    if (typeof google !== 'undefined' && google.script && google.script.host) {
+                        google.script.host.setHeight(window.innerHeight);
+                        google.script.host.setWidth(window.innerWidth);
+                    }
+                } catch(e) {}
+            });
+        });
+
+        onUnmounted(function() {
+            clearInterval(timerInterval);
+            clearTimeout(saveItineraryTimer);
+        });
+
+        return {
+            activeTab: activeTab,
+            activeDay: activeDay,
+            isLoading: isLoading,
+            isRefreshing: isRefreshing,
+            isSavingExpense: isSavingExpense,
+            trip: trip,
+            allTrips: allTrips,
+            selectedTripId: selectedTripId,
+            currentDayItinerary: currentDayItinerary,
+            liveItem: liveItem, 
+            expenses: expenses,
+            totalSpent: totalSpent,
+            splitSummary: splitSummary,
+            showMasterModal: showMasterModal,
+            showDetailModal: showDetailModal, 
+            selectedDestDetail: selectedDestDetail,
+            activeImgIdx: activeImgIdx,
+            nextDetailImg: nextDetailImg,
+            prevDetailImg: prevDetailImg,
+            showAddExpenseModal: showAddExpenseModal,
+            newExpense: newExpense,
+            destinations: destinations,
+            syncStatus: syncStatus,
+            timerDisplay: timerDisplay,
+            timerDashOffset: timerDashOffset,
+            getDestInfo: getDestInfo,
+            getDistance: getDistance,
+            formatRp: formatRp,
+            getCategoryIcon: getCategoryIcon,
+            getCategoryColor: getCategoryColor, 
+            moveItem: moveItem,
+            openDetail: openDetail,
+            openDayInMaps: openDayInMaps,
+            addDestination: addDestination,
+            saveExpenseItem: saveExpenseItem,
+            deleteExpenseItem: deleteExpenseItem, 
+            delayLive: delayLive,
+            finishLive: finishLive,
+            refreshData: refreshData,
+            switchTrip: switchTrip,
+            debouncedSaveItinerary: debouncedSaveItinerary
+        };
+    }
+}).mount('#app');
+</script>
+
+</body>
+</html>
