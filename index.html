@@ -684,23 +684,39 @@ var onUnmounted = _Vue.onUnmounted;
 
 var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbx7uSMhm7AZWBs2K1Y2qUdxTK1vvQ4AiCps_uk4KZc_gXFJEpSL-tFY3rnBGgx60i4IHQ/exec';
 
-var gasRun = async function(action, payload) {
-    if (action === 'getInitialData') {
-        var tripId = payload || 'TRIP-SBY-001';
-        var url = GAS_API_URL + '?action=getInitialData&trip_id=' + encodeURIComponent(tripId);
-        var res = await fetch(url);
-        return await res.json();
-    } else {
-        var bodyData = {
-            action: action,
-            data: payload
-        };
-        var res = await fetch(GAS_API_URL, {
-            method: 'POST',
-            body: JSON.stringify(bodyData)
-        });
-        return await res.json();
-    }
+var gasRun = function(action, payload) {
+    return new Promise(function(resolve, reject) {
+        if (action === 'getInitialData') {
+            var tripId = payload || 'TRIP-SBY-001';
+            var callbackName = 'gasCallback_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+            window[callbackName] = function(data) {
+                resolve(data);
+                delete window[callbackName];
+                document.body.removeChild(script);
+            };
+            var script = document.createElement('script');
+            script.src = GAS_API_URL + '?action=getInitialData&trip_id=' + encodeURIComponent(tripId) + '&callback=' + callbackName;
+            script.onerror = function() {
+                reject(new Error('JSONP request failed'));
+                delete window[callbackName];
+                document.body.removeChild(script);
+            };
+            document.body.appendChild(script);
+        } else {
+            var bodyData = {
+                action: action,
+                data: payload
+            };
+            fetch(GAS_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(bodyData)
+            }).then(function() {
+                resolve({ success: true });
+            }).catch(reject);
+        }
+    });
 };
 
 createApp({
